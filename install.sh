@@ -147,27 +147,45 @@ ss_method=${ss_method:-aes-128-gcm}
 
 # Generate sbconfig_server.json
 server_ip=$(curl -s4m8 ip.sb -k || curl -s6m8 ip.sb -k)
-jq -n --arg listen_port "$listen_port" --arg server_name "$server_name" --arg uuid "$uuid" --arg short_id "$short_id" \
-      --arg ss_port "$ss_port" --arg ss_password "$ss_password" --arg ss_method "$ss_method" --arg server_ip "$server_ip" '{
+jq -n \
+  --arg listen_port "$listen_port" \
+  --arg server_name "$server_name" \
+  --arg uuid "$uuid" \
+  --arg short_id "$short_id" \
+  --arg private_key "$private_key" \
+  --arg ss_port "$ss_port" \
+  --arg ss_password "$ss_password" \
+  --arg ss_method "$ss_method" \
+  --arg server_ip "$server_ip" \
+'{
   "log": {"disabled": false,"level": "info","timestamp": true},
   "inbounds":[
     {
       "type": "vless",
       "tag": "vless-in",
       "listen": "::",
-      "listen_port": ($listen_port | tonumber),
+      "listen_port": ($listen_port|tonumber),
       "users":[{"uuid": $uuid,"flow": "xtls-rprx-vision"}],
-      "tls": {"enabled": true,"server_name": $server_name,"reality":{"enabled": true,"handshake":{"server": $server_name,"server_port": 443},"private_key": $private_key,"short_id": [$short_id]}}
+      "tls": {
+        "enabled": true,
+        "server_name": $server_name,
+        "reality": {
+          "enabled": true,
+          "handshake": {"server": $server_name,"server_port": 443},
+          "private_key": $private_key,
+          "short_id": [$short_id]
+        }
+      }
     },
     {
       "type": "shadowsocks",
       "tag": "ss-in",
       "listen": "::",
-      "listen_port": ($ss_port | tonumber),
+      "listen_port": ($ss_port|tonumber),
       "users":[{"password": $ss_password,"method": $ss_method}]
     }
   ],
-  "outbounds":[{"type": "direct","tag": "direct"}],
+  "outbounds":[{"type":"direct","tag":"direct"}],
   "route":{"rules":[{"protocol":"dns","action":"hijack-dns"},{"inbound":["vless-in","ss-in"],"action":"direct"}],"final":"direct"}
 }' > /root/sbox/sbconfig_server.json
 
